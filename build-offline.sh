@@ -1,19 +1,33 @@
 #!/bin/sh
 # Offline build script for nmap-unprivileged.
-# Requirements: gcc, g++, make (standard build-essential on any Linux distro).
+#
+# Requirements (all standard on any Linux distro):
+#   - gcc, g++, make  (build-essential / Development Tools)
+#   - perl             (required by OpenSSL ./Configure)
+#   - javac            (optional: only needed to compile JDWP NSE helper classes)
+#
 # No network access required — all dependencies are bundled in this source tree.
+# OpenSSL 3.4.1 is included under openssl/ (Apache 2.0 license).
 set -e
 
-# Clean any stale generated files from previous configure runs
-# (important when sources come from a Windows checkout)
+SRCDIR="$(cd "$(dirname "$0")" && pwd)"
+OPENSSL_DIR="$SRCDIR/openssl"
+OPENSSL_PREFIX="$SRCDIR/openssl-build"
+
+# ---------------------------------------------------------------------------
+# 1. Clean any stale generated files from previous configure runs
+#    (important when sources come from a Windows checkout)
+# ---------------------------------------------------------------------------
 if [ -f Makefile ]; then
   make distclean || true
 fi
 
-# Fix CRLF line endings — required when sources are checked out on Windows.
-# Covers shell scripts and autoconf config templates (*.in).
-# Do NOT include *.ac or *.am — touching them makes make try to regenerate
-# configure via autoconf, which is not available offline.
+# ---------------------------------------------------------------------------
+# 2. Fix CRLF line endings — required when sources are checked out on Windows.
+#    Covers shell scripts and autoconf config templates (*.in).
+#    Do NOT include *.ac or *.am — touching them makes make try to regenerate
+#    configure via autoconf, which is not available offline.
+# ---------------------------------------------------------------------------
 find . -type f \( \
   -name "*.sh" -o -name "configure" -o -name "depcomp" \
   -o -name "install-sh" -o -name "config.guess" -o -name "config.sub" \
@@ -24,13 +38,61 @@ find . -type f \( \
 sed -i 's/\r$//' nmap-service-probes nmap-services nmap-os-db \
   nmap-protocols nmap-rpc nmap-mac-prefixes 2>/dev/null || true
 
+# ---------------------------------------------------------------------------
+# 3. Compile JDWP NSE helper classes from Java source (no binary blobs).
+#    Requires javac. Skipped with a warning if javac is not installed.
+# ---------------------------------------------------------------------------
+JDWP_DIR="$SRCDIR/nselib/data/jdwp-class"
+if command -v javac >/dev/null 2>&1; then
+  echo "Compiling JDWP NSE helper classes..."
+  javac -source 8 -target 8 "$JDWP_DIR"/*.java 2>&1 || \
+    { echo "WARNING: javac failed — JDWP NSE scripts will not work"; }
+else
+  echo "WARNING: javac not found — JDWP NSE scripts (jdwp-*.nse) will not work."
+  echo "         Install a JDK to enable Java Debug Wire Protocol scanning."
+fi
+
+# ---------------------------------------------------------------------------
+# 4. Build OpenSSL 3.4.1 as a static library (Apache 2.0, source in openssl/).
+#    Requires: perl (for OpenSSL's ./Configure script).
+#    Result is installed to openssl-build/ inside the source tree.
+# ---------------------------------------------------------------------------
+if [ ! -f "$OPENSSL_PREFIX/lib/libssl.a" ] && \
+   [ ! -f "$OPENSSL_PREFIX/lib64/libssl.a" ]; then
+  echo "Building bundled OpenSSL 3.4.1..."
+  if ! command -v perl >/dev/null 2>&1; then
+    echo "ERROR: perl is required to build OpenSSL. Install perl and retry."
+    exit 1
+  fi
+  mkdir -p "$OPENSSL_PREFIX"
+  cd "$OPENSSL_DIR"
+  perl Configure \
+    no-shared no-tests no-ui-console \
+    --prefix="$OPENSSL_PREFIX" \
+    --openssldir="$OPENSSL_PREFIX/ssl" \
+    --libdir=lib
+  make -j"$(nproc 2>/dev/null || echo 4)"
+  make install_sw
+  cd "$SRCDIR"
+  echo "OpenSSL build complete: $OPENSSL_PREFIX"
+else
+  echo "OpenSSL already built, skipping."
+fi
+
+# Resolve actual lib dir (some systems use lib64)
+OPENSSL_LIBDIR="$OPENSSL_PREFIX/lib"
+[ -f "$OPENSSL_PREFIX/lib64/libssl.a" ] && OPENSSL_LIBDIR="$OPENSSL_PREFIX/lib64"
+
+# ---------------------------------------------------------------------------
+# 5. Configure and build nmap
+# ---------------------------------------------------------------------------
 ./configure \
   --without-nping \
   --without-ndiff \
   --without-zenmap \
   --without-ncat \
-  --without-openssl \
   --without-libssh2 \
+  --with-openssl="$OPENSSL_PREFIX" \
   --with-libpcap=included \
   --with-libdnet=included \
   --with-lua=included

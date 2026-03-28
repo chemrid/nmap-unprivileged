@@ -1,0 +1,2 @@
+# Compiled Java bytecode — generated at build time from *.java sources
+*.class
