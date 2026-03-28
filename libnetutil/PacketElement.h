@@ -66,6 +66,7 @@
 
 #include "nbase.h"
 #include "netutil.h"
+#include <cstring>
 
 #define HEADER_TYPE_IPv6_HOPOPT   0  /* IPv6 Hop-by-Hop Option                */
 #define HEADER_TYPE_ICMPv4        1  /* ICMP Internet Control Message         */

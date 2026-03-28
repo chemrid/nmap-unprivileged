@@ -133,7 +133,7 @@ typedef unsigned __int8 u_int8_t;
 #endif
 #include <net/if_arp.h>
 
-#if HAVE_SYS_RESOURCE_H
+#if HAVE_SYS_RESOURCE_H || (!defined(_WIN32) && !defined(__MINGW32__))
 #include <sys/resource.h>
 #endif
 

@@ -1909,6 +1909,20 @@ int nmap_main(int argc, char *argv[]) {
 
   apply_delayed_options();
 
+  // Unprivileged build: reject any scan type that requires raw sockets.
+  if (o.synscan)
+    fatal("SYN scan (-sS) is not supported in this build. Use -sT instead.");
+  if (o.osscan)
+    fatal("OS detection (-O) is not supported in this build.");
+  if (o.idlescan)
+    fatal("Idle scan (-sI) is not supported in this build.");
+  if (o.ipprotscan)
+    fatal("IP protocol scan (-sO) is not supported in this build.");
+  if (o.ackscan || o.finscan || o.nullscan || o.xmasscan || o.windowscan || o.maimonscan)
+    fatal("Raw TCP scans (-sA/-sF/-sN/-sX/-sW/-sM) are not supported in this build.");
+  if (o.udpscan)
+    fatal("UDP scan (-sU) is not supported in this build (requires raw sockets).");
+
   for (unsigned int i = 0; i < route_dst_hosts.size(); i++) {
     const char *dst;
     struct sockaddr_storage ss;

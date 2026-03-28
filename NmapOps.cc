@@ -217,17 +217,9 @@ static char *filename_to_url(const char *filename) {
 
 void NmapOps::Initialize() {
   setaf(AF_INET);
-#if defined WIN32 || defined __amigaos__
-  isr00t = 1;
-#else
-  if (getenv("NMAP_PRIVILEGED"))
-    isr00t = 1;
-  else if (getenv("NMAP_UNPRIVILEGED"))
-    isr00t = 0;
-  else
-    isr00t = !(geteuid());
-#endif
-  have_pcap = true;
+  // Unprivileged build: raw sockets and privileged scan types are disabled.
+  isr00t = 0;
+  have_pcap = false;
   debugging = 0;
   verbose = 0;
   min_packet_send_rate = 0.0; /* Unset. */
