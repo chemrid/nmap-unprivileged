@@ -1,43 +1,122 @@
-Nmap [![Build Status](https://github.com/nmap/nmap/actions/workflows/build.yml/badge.svg)](https://github.com/nmap/nmap/actions/workflows/build.yml)
-====
+# nmap-unprivileged
 
-Nmap is released under a custom license, which is based on (but not compatible
-with) GPLv2. The Nmap license allows free usage by end users, and we also offer
-a commercial license for companies that wish to redistribute Nmap technology
-with their products. See [Nmap Copyright and Licensing](https://nmap.org/book/man-legal.html)
-for full details.
+Форк [nmap](https://github.com/nmap/nmap) для air-gapped Linux-систем (RHEL, Astra Linux, Debian).
 
-The latest version of this software as well as binary installers for Windows,
-macOS, and Linux (RPM) are available from
-[Nmap.org](https://nmap.org/download.html)
+**Отличия от upstream:**
+- Сборка полностью офлайн — все зависимости бандлированы (libpcap, libdnet, libpcre, lua, OpenSSL 3.4.1)
+- Сканирование сырыми сокетами (`-sS`, `-sU`, `-O`) заблокировано — работа без `root` и `CAP_NET_RAW`
+- TCP connect (`-sT`), определение сервисов (`-sV`), NSE-скрипты — работают
+- Не собираются: nping, ncat, ndiff, zenmap
 
-Full documentation is also available
-[on the Nmap.org website](https://nmap.org/docs.html).
+---
 
-Questions and suggestions may be sent to
-[the Nmap-dev mailing list](https://nmap.org/mailman/listinfo/dev).
+## Как билдить
 
-Installing
-----------
-Ideally, you should be able to just type:
+### Требования
 
-    ./configure
-    make
-    make install
+| Пакет | Зачем | Обязателен |
+|-------|-------|------------|
+| `gcc`, `g++`, `make` | компиляция | да |
+| `perl` | сборка OpenSSL (его `./Configure`) | да |
+| `javac` (JDK) | компиляция JDWP NSE-классов | нет |
 
-For far more in-depth compilation, installation, and removal notes, read the
-[Nmap Install Guide](https://nmap.org/book/install.html) on Nmap.org.
+На RHEL/CentOS:
+```sh
+yum install gcc gcc-c++ make perl
+```
 
-Using Nmap
-----------
-Nmap has a lot of features, but getting started is as easy as running `nmap
-scanme.nmap.org`. Running `nmap` without any parameters will give a helpful
-list of the most common options, which are discussed in depth in [the man
-page](https://nmap.org/book/man.html). Users who prefer a graphical interface
-can use the included [Zenmap front-end](https://nmap.org/zenmap/).
+На Debian/Ubuntu:
+```sh
+apt-get install build-essential perl
+```
 
-Contributing
-------------
-Information about filing bug reports and contributing to the Nmap project can
-be found in the [HACKING](HACKING) and [CONTRIBUTING.md](CONTRIBUTING.md)
-files.
+### Сборка
+
+```sh
+git clone https://github.com/chemrid/nmap-unprivileged.git
+cd nmap-unprivileged
+sh build-offline.sh
+```
+
+Скрипт выполняет:
+1. Очистку предыдущих артефактов (`make distclean`)
+2. Правку CRLF-окончаний строк (если источники клонированы на Windows)
+3. Компиляцию JDWP `.class`-файлов из `.java` (если есть `javac`)
+4. Сборку OpenSSL 3.4.1 как статической библиотеки → `openssl-build/`
+5. `./configure` + `make`
+
+### Артефакт после сборки
+
+После `build-offline.sh` готовый бинарник находится в корне репозитория:
+
+```
+nmap-unprivileged/
+└── nmap          ← готовый бинарник
+```
+
+Бинарник статически слинкован с OpenSSL — внешних `.so`-зависимостей нет.
+
+---
+
+## Установка
+
+### Вариант 1 — `make install` (в `/usr/local`)
+
+```sh
+make install
+```
+
+Устанавливает:
+- `/usr/local/bin/nmap`
+- `/usr/local/share/nmap/` — data-файлы (`nmap-services`, `nmap-os-db`, скрипты и др.)
+
+### Вариант 2 — кастомный prefix
+
+```sh
+./configure --prefix=/opt/nmap-unpriv \
+  --without-nping --without-ndiff --without-zenmap --without-ncat \
+  --without-libssh2 \
+  --with-openssl="$(pwd)/openssl-build" \
+  --with-libpcap=included \
+  --with-libdnet=included \
+  --with-lua=included
+make -j$(nproc)
+make install
+```
+
+Результат: всё в `/opt/nmap-unpriv/`.
+
+### Вариант 3 — ручное копирование бинарника
+
+Если нужна минимальная установка без `make install`:
+
+```sh
+cp nmap /usr/local/bin/
+mkdir -p /usr/local/share/nmap
+cp nmap-services nmap-os-db nmap-protocols nmap-rpc nmap-mac-prefixes \
+   nmap-service-probes /usr/local/share/nmap/
+cp -r scripts/ /usr/local/share/nmap/scripts/
+```
+
+Либо запускать с явным `--datadir`:
+```sh
+nmap --datadir /path/to/nmap-unprivileged <target>
+```
+
+---
+
+## Проверка
+
+```sh
+./nmap -sT -sV localhost        # TCP connect + определение сервисов
+./nmap --script=http-title localhost -p 80
+./nmap -sS localhost            # должно вернуть: "requires root"
+```
+
+---
+
+## Лицензия
+
+Nmap распространяется под собственной лицензией (на основе GPLv2).
+OpenSSL 3.4.1 — Apache License 2.0.
+Подробнее: [nmap.org/book/man-legal.html](https://nmap.org/book/man-legal.html)
