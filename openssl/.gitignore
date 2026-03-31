@@ -4,6 +4,7 @@
 /test/
 /doc/
 /fuzz/
+!/fuzz/build.info
 /demos/
 # Certificate and key files — test/demo material only, not real secrets.
 # Excluded to avoid GitHub push protection false-positives on test material.
