@@ -64,10 +64,16 @@ if [ ! -f "$OPENSSL_PREFIX/lib/libssl.a" ] && \
     echo "ERROR: perl is required to build OpenSSL. Install perl and retry."
     exit 1
   fi
+  if ! perl -MText::Template -e1 2>/dev/null; then
+    echo "ERROR: Perl module Text::Template is required to build OpenSSL 3.x."
+    echo "       Debian/Astra: apt-get install libtext-template-perl"
+    echo "       RHEL/CentOS:  yum install perl-Text-Template"
+    exit 1
+  fi
   mkdir -p "$OPENSSL_PREFIX"
   cd "$OPENSSL_DIR"
   perl Configure \
-    no-shared no-tests no-ui-console \
+    no-shared no-tests no-ui-console no-asm \
     --prefix="$OPENSSL_PREFIX" \
     --openssldir="$OPENSSL_PREFIX/ssl" \
     --libdir=lib

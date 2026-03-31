@@ -16,18 +16,19 @@
 
 | Пакет | Зачем | Обязателен |
 |-------|-------|------------|
-| `gcc`, `g++`, `make` | компиляция | да |
+| `gcc`, `g++`, `make` | компиляция C и C++ кода | да |
 | `perl` | сборка OpenSSL (его `./Configure`) | да |
+| `libtext-template-perl` / `perl-Text-Template` | perl-модуль, нужен OpenSSL 3.x | да |
 | `javac` (JDK) | компиляция JDWP NSE-классов | нет |
 
 На RHEL/CentOS:
 ```sh
-yum install gcc gcc-c++ make perl
+yum install gcc gcc-c++ make perl perl-Text-Template
 ```
 
-На Debian/Ubuntu:
+На Debian/Ubuntu/Astra Linux:
 ```sh
-apt-get install build-essential perl
+apt-get install build-essential perl libtext-template-perl
 ```
 
 ### Сборка
