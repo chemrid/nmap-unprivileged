@@ -5,6 +5,28 @@
 /doc/
 /fuzz/
 !/fuzz/build.info
+/doc/
+!/doc/build.info
+!/doc/man1/build.info
+/test/
+!/test/build.info
+/demos/
+!/demos/build.info
+!/demos/bio/build.info
+!/demos/cipher/build.info
+!/demos/cms/build.info
+!/demos/digest/build.info
+!/demos/encode/build.info
+!/demos/encrypt/build.info
+!/demos/guide/build.info
+!/demos/http3/build.info
+!/demos/kdf/build.info
+!/demos/keyexch/build.info
+!/demos/mac/build.info
+!/demos/pkey/build.info
+!/demos/signature/build.info
+!/demos/smime/build.info
+!/demos/sslecho/build.info
 /demos/
 # Certificate and key files — test/demo material only, not real secrets.
 # Excluded to avoid GitHub push protection false-positives on test material.
