@@ -60,7 +60,18 @@ sed -i 's/$//' nmap-service-probes nmap-services nmap-os-db \
   nmap-protocols nmap-rpc nmap-mac-prefixes 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
-# 3. Compile JDWP NSE helper classes from Java source (no binary blobs).
+# 3. Patch nmap configure for OpenSSL 3.x compatibility.
+#    In OpenSSL 3.x, BIO_int_ctrl() was converted from a real function to
+#    a macro wrapping BIO_ctrl(). As a result, AC_CHECK_LIB(crypto,
+#    BIO_int_ctrl) returns "no" even when libcrypto is correctly linked,
+#    causing configure to abort with "libcrypto was not found".
+#    Replace the check with BIO_new, which is a real function in all
+#    OpenSSL versions (1.x and 3.x).
+# ---------------------------------------------------------------------------
+sed -i 's/BIO_int_ctrl/BIO_new/g' configure
+
+# ---------------------------------------------------------------------------
+# 4. Compile JDWP NSE helper classes from Java source (no binary blobs).
 #    Requires javac. Skipped with a warning if javac is not installed.
 # ---------------------------------------------------------------------------
 JDWP_DIR="$SRCDIR/nselib/data/jdwp-class"
@@ -74,7 +85,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 4. Build OpenSSL 3.4.1 as a static library (Apache 2.0, source in openssl/).
+# 5. Build OpenSSL 3.4.1 as a static library (Apache 2.0, source in openssl/).
 #    Requires: perl (for OpenSSL's ./Configure script).
 #    Result is installed to openssl-build/ inside the source tree.
 # ---------------------------------------------------------------------------
@@ -111,7 +122,7 @@ OPENSSL_LIBDIR="$OPENSSL_PREFIX/lib"
 [ -f "$OPENSSL_PREFIX/lib64/libssl.a" ] && OPENSSL_LIBDIR="$OPENSSL_PREFIX/lib64"
 
 # ---------------------------------------------------------------------------
-# 5. Configure and build nmap
+# 6. Configure and build nmap
 # ---------------------------------------------------------------------------
 ./configure \
   --without-nping \
