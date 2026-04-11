@@ -4,6 +4,7 @@
 # Requirements (all standard on any Linux distro):
 #   - gcc, g++, make  (build-essential / Development Tools)
 #   - perl             (required by OpenSSL ./Configure)
+#   - linux-libc-dev   (kernel headers: linux/limits.h etc.)
 #   - javac            (optional: only needed to compile JDWP NSE helper classes)
 #
 # No network access required — all dependencies are bundled in this source tree.
@@ -13,6 +14,26 @@ set -e
 SRCDIR="$(cd "$(dirname "$0")" && pwd)"
 OPENSSL_DIR="$SRCDIR/openssl"
 OPENSSL_PREFIX="$SRCDIR/openssl-build"
+
+# ---------------------------------------------------------------------------
+# 0. Preflight checks — catch missing build dependencies early with clear
+#    error messages instead of cryptic mid-build failures.
+# ---------------------------------------------------------------------------
+if ! command -v gcc >/dev/null 2>&1; then
+  echo "ERROR: gcc not found. Install build tools:"
+  echo "       Debian/Astra: apt-get install build-essential"
+  echo "       RHEL/CentOS:  yum install gcc gcc-c++ make"
+  exit 1
+fi
+
+# Check for Linux kernel headers (provides linux/limits.h).
+# Missing on Astra Linux and minimal Debian installs by default.
+if [ ! -f /usr/include/linux/limits.h ]; then
+  echo "ERROR: Linux kernel headers not found (linux/limits.h is missing)."
+  echo "       Debian/Astra: apt-get install linux-libc-dev"
+  echo "       RHEL/CentOS:  yum install kernel-headers"
+  exit 1
+fi
 
 # ---------------------------------------------------------------------------
 # 1. Clean any stale generated files from previous configure runs
@@ -33,9 +54,9 @@ find . -type f \( \
   -o -name "install-sh" -o -name "config.guess" -o -name "config.sub" \
   -o -name "ltmain.sh" -o -name "missing" -o -name "compile" \
   -o -name "ylwrap" -o -name "*.in" \
-  \) | xargs sed -i 's/\r$//' 2>/dev/null || true
+  \) | xargs sed -i 's/$//' 2>/dev/null || true
 # Also fix nmap runtime data files (parsed at runtime, CRLF breaks parsing)
-sed -i 's/\r$//' nmap-service-probes nmap-services nmap-os-db \
+sed -i 's/$//' nmap-service-probes nmap-services nmap-os-db \
   nmap-protocols nmap-rpc nmap-mac-prefixes 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
