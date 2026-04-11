@@ -4,16 +4,22 @@
 # Requirements (all standard on any Linux distro):
 #   - gcc, g++, make  (build-essential / Development Tools)
 #   - perl             (required by OpenSSL ./Configure)
-#   - linux-libc-dev   (kernel headers: linux/limits.h etc.)
+#   - linux-libc-dev OR linux-headers-* (kernel headers: linux/limits.h etc.)
 #   - javac            (optional: only needed to compile JDWP NSE helper classes)
 #
 # No network access required — all dependencies are bundled in this source tree.
 # OpenSSL 3.4.1 is included under openssl/ (Apache 2.0 license).
+# Text::Template Perl module is vendored under vendor/perl/ (Artistic/GPL).
 set -e
 
 SRCDIR="$(cd "$(dirname "$0")" && pwd)"
 OPENSSL_DIR="$SRCDIR/openssl"
 OPENSSL_PREFIX="$SRCDIR/openssl-build"
+
+# Use vendored Perl modules (Text::Template etc.) without installing them
+# system-wide. This allows building on air-gapped systems where
+# libtext-template-perl / perl-Text-Template is not available in the repo.
+export PERL5LIB="$SRCDIR/vendor/perl${PERL5LIB:+:$PERL5LIB}"
 
 # ---------------------------------------------------------------------------
 # 0. Preflight checks — catch missing build dependencies early with clear
@@ -27,10 +33,19 @@ if ! command -v gcc >/dev/null 2>&1; then
 fi
 
 # Check for Linux kernel headers (provides linux/limits.h).
-# Missing on Astra Linux and minimal Debian installs by default.
-if [ ! -f /usr/include/linux/limits.h ]; then
+# Prefer /usr/include/linux (linux-libc-dev), but also accept headers
+# installed by linux-headers-* packages (Astra Linux, minimal Debian).
+KERNEL_INCLUDE=""
+if [ -f /usr/include/linux/limits.h ]; then
+  KERNEL_INCLUDE="/usr/include"
+else
+  KERNEL_INCLUDE="$(find /usr/src -maxdepth 3 -name 'limits.h' \
+    -path '*/linux/limits.h' 2>/dev/null | head -1 | sed 's|/linux/limits\.h||')"
+fi
+if [ -z "$KERNEL_INCLUDE" ]; then
   echo "ERROR: Linux kernel headers not found (linux/limits.h is missing)."
   echo "       Debian/Astra: apt-get install linux-libc-dev"
+  echo "       or:           apt-get install linux-headers-\$(uname -r)"
   echo "       RHEL/CentOS:  yum install kernel-headers"
   exit 1
 fi
@@ -97,9 +112,8 @@ if [ ! -f "$OPENSSL_PREFIX/lib/libssl.a" ] && \
     exit 1
   fi
   if ! perl -MText::Template -e1 2>/dev/null; then
-    echo "ERROR: Perl module Text::Template is required to build OpenSSL 3.x."
-    echo "       Debian/Astra: apt-get install libtext-template-perl"
-    echo "       RHEL/CentOS:  yum install perl-Text-Template"
+    echo "ERROR: Perl module Text::Template not found even in vendor/perl/."
+    echo "       This should not happen — check that vendor/perl/Text/Template.pm exists."
     exit 1
   fi
   mkdir -p "$OPENSSL_PREFIX"
@@ -127,8 +141,14 @@ OPENSSL_LIBDIR="$OPENSSL_PREFIX/lib"
 #    no-shared) depends on libdl and pthreads. Without these flags, the
 #    configure AC_CHECK_LIB(crypto, BIO_new) link test fails even though
 #    the library is correctly present, and configure aborts.
+#
+#    CPPFLAGS: if kernel headers are in a non-standard path (Astra Linux with
+#    linux-headers-* but no linux-libc-dev), pass the include path explicitly.
 # ---------------------------------------------------------------------------
-LIBS="-ldl -pthread" ./configure \
+EXTRA_CPPFLAGS=""
+[ "$KERNEL_INCLUDE" != "/usr/include" ] && EXTRA_CPPFLAGS="-I$KERNEL_INCLUDE"
+
+LIBS="-ldl -pthread" CPPFLAGS="$EXTRA_CPPFLAGS" ./configure \
   --without-nping \
   --without-ndiff \
   --without-zenmap \
