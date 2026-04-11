@@ -122,9 +122,13 @@ OPENSSL_LIBDIR="$OPENSSL_PREFIX/lib"
 [ -f "$OPENSSL_PREFIX/lib64/libssl.a" ] && OPENSSL_LIBDIR="$OPENSSL_PREFIX/lib64"
 
 # ---------------------------------------------------------------------------
-# 6. Configure and build nmap
+# 6. Configure and build nmap.
+#    LIBS="-ldl -pthread" is required because static libcrypto.a (built with
+#    no-shared) depends on libdl and pthreads. Without these flags, the
+#    configure AC_CHECK_LIB(crypto, BIO_new) link test fails even though
+#    the library is correctly present, and configure aborts.
 # ---------------------------------------------------------------------------
-./configure \
+LIBS="-ldl -pthread" ./configure \
   --without-nping \
   --without-ndiff \
   --without-zenmap \
