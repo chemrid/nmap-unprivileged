@@ -39,7 +39,7 @@ KERNEL_INCLUDE=""
 if [ -f /usr/include/linux/limits.h ]; then
   KERNEL_INCLUDE="/usr/include"
 else
-  KERNEL_INCLUDE="$(find /usr/src -maxdepth 3 -name 'limits.h' \
+  KERNEL_INCLUDE="$(find /usr/src -maxdepth 5 -name 'limits.h' \
     -path '*/linux/limits.h' 2>/dev/null | head -1 | sed 's|/linux/limits\.h||')"
 fi
 if [ -z "$KERNEL_INCLUDE" ]; then
