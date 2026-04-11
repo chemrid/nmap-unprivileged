@@ -19,16 +19,17 @@
 | `gcc`, `g++`, `make` | компиляция C и C++ кода | да |
 | `perl` | сборка OpenSSL (его `./Configure`) | да |
 | `libtext-template-perl` / `perl-Text-Template` | perl-модуль, нужен OpenSSL 3.x | да |
+| `linux-libc-dev` / `kernel-headers` | заголовки ядра Linux (`linux/limits.h` и др.) | да |
 | `javac` (JDK) | компиляция JDWP NSE-классов | нет |
 
 На RHEL/CentOS:
 ```sh
-yum install gcc gcc-c++ make perl perl-Text-Template
+yum install gcc gcc-c++ make perl perl-Text-Template kernel-headers
 ```
 
 На Debian/Ubuntu/Astra Linux:
 ```sh
-apt-get install build-essential perl libtext-template-perl
+apt-get install build-essential perl libtext-template-perl linux-libc-dev
 ```
 
 ### Сборка
